@@ -21,8 +21,6 @@ const CORS_HEADERS: Record<string, string> = {
 
 export default async (request: Request, context: Context) => {
 
-  console.log("111111111", request.url)
-
   if (request.method === "OPTIONS") {
     return new Response(null, {
       headers: CORS_HEADERS,
