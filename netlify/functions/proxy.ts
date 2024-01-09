@@ -1,85 +1,51 @@
-import { Context } from "@netlify/edge-functions";
-
-const pickHeaders = (headers: Headers, keys: (string | RegExp)[]): Headers => {
-  const picked = new Headers();
-  for (const key of headers.keys()) {
-    if (keys.some((k) => (typeof k === "string" ? k === key : k.test(key)))) {
-      const value = headers.get(key);
-      if (typeof value === "string") {
-        picked.set(key, value);
-      }
+// vercel.json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
     }
-  }
-  return picked;
-};
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/proxy.js?target=$1"
+    }
+  ]
+}
 
-const CORS_HEADERS: Record<string, string> = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "*",
-  "access-control-allow-headers": "*",
-};
+// api/proxy.js
+const https = require("https");
 
-export default async (request: Request, context: Context) => {
-
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      headers: CORS_HEADERS,
-    });
-  }
-
-  const { pathname, searchParams } = new URL(request.url);
-  if(pathname === "/") {
-    let blank_html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Google PaLM API proxy on Netlify Edge</title>
-</head>
-<body>
-  <h1 id="google-palm-api-proxy-on-netlify-edge">Google PaLM API proxy on Netlify Edge</h1>
-  <p>Tips: This project uses a reverse proxy to solve problems such as location restrictions in Google APIs. </p>
-  <p>If you have any of the following requirements, you may need the support of this project.</p>
-  <ol>
-  <li>When you see the error message &quot;User location is not supported for the API use&quot; when calling the Google PaLM API</li>
-  <li>You want to customize the Google PaLM API</li>
-  </ol>
-  <p>For technical discussions, please visit <a href="https://simonmy.com/posts/使用netlify反向代理google-palm-api.html">https://simonmy.com/posts/使用netlify反向代理google-palm-api.html</a></p>
-</body>
-</html>
-    `
-    return new Response(blank_html, {
-      headers: {
-        ...CORS_HEADERS,
-        "content-type": "text/html"
-      },
-    });
-  }
-
-  const url = new URL(pathname, "https://generativelanguage.googleapis.com");
-  searchParams.delete("_path");
-
-  searchParams.forEach((value, key) => {
-    url.searchParams.append(key, value);
-  });
-
-  const headers = pickHeaders(request.headers, ["content-type", "x-goog-api-client", "x-goog-api-key", "accept-encoding"]);
-
-  const response = await fetch(url, {
-    body: request.body,
-    method: request.method,
-    duplex: 'half',
-    headers,
-  });
-
-  const responseHeaders = {
-    ...CORS_HEADERS,
-    ...Object.fromEntries(response.headers),
-    "content-encoding": null
+module.exports = (req, res) => {
+  const { target } = req.query;
+  const options = {
+    hostname: "copilot.microsoft.com",
+    port: 443,
+    path: `/${target}`,
+    method: "GET",
+    headers: req.headers
   };
-
-  return new Response(response.body, {
-    headers: responseHeaders,
-    status: response.status
+  const proxy = https.request(options, (response) => {
+    res.writeHead(response.statusCode, response.headers);
+    response.pipe(res, { end: true });
   });
+  req.pipe(proxy, { end: true });
 };
+
+// public/index.html
+<html>
+  <head>
+    <title>Proxy Website</title>
+  </head>
+  <body>
+    <h1>Welcome to Proxy Website</h1>
+    <p>This is a simple proxy website that can access copilot.microsoft.com.</p>
+    <p>Try to sign in with your Microsoft account or Entra ID account below:</p>
+    <form action="/" method="get">
+      <input type="text" name="account" placeholder="Enter your account" />
+      <input type="submit" value="Sign in" />
+    </form>
+  </body>
+</html>
