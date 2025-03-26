@@ -44,7 +44,7 @@ export default async (request: Request, context: Context) => {
   <li>When you see the error message &quot;User location is not supported for the API use&quot; when calling the Google PaLM API</li>
   <li>You want to customize the Google PaLM API</li>
   </ol>
-  <p>For technical discussions, please visit <a href="https://simonmy.com/posts/使用netlify反向代理google-palm-api.html">https://simonmy.com/posts/使用netlify反向代理google-palm-api.html</a></p>
+  <p>For technical discussions, please visit <a href="https://simonmy.com/posts/google-palm-api-proxy-on-netlify-edge.html">https://simonmy.com/posts/google-palm-api-proxy-on-netlify-edge.html</a></p>
 </body>
 </html>
     `
@@ -63,19 +63,17 @@ export default async (request: Request, context: Context) => {
     url.searchParams.append(key, value);
   });
 
-  const headers = pickHeaders(request.headers, ["content-type", "x-goog-api-client", "x-goog-api-key", "accept-encoding"]);
+  const headers = pickHeaders(request.headers, ["content-type", "authorization", "x-goog-api-client", "x-goog-api-key", "accept-encoding"]);
 
   const response = await fetch(url, {
     body: request.body,
     method: request.method,
-    duplex: 'half',
     headers,
   });
 
   const responseHeaders = {
     ...CORS_HEADERS,
     ...Object.fromEntries(response.headers),
-    "content-encoding": null
   };
 
   return new Response(response.body, {
